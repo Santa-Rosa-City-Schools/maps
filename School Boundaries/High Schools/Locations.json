@@ -1,0 +1,7 @@
+{"type":"FeatureCollection", "features": [
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.68254658248193,38.440095737803404]},"properties":{"Name":"Montgomery High School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.73518339866229,38.40450401220758]},"properties":{"Name":"Elsie Allen High School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.76844783793747,38.4610026668374]},"properties":{"Name":"Piner High School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.71831704790138,38.45047271210203]},"properties":{"Name":"Santa Rosa High School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.66018882874245,38.48068307213012]},"properties":{"Name":"Maria Carrillo High School"}}
+]}

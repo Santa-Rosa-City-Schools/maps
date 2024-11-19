@@ -1,0 +1,11 @@
+{"type":"FeatureCollection", "features": [
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.69770528314308,38.4516113463648]},"properties":{"Name":"Proctor Terrace Elementary School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.69251796241495,38.43794264744989]},"properties":{"Name":"Brook Hill Elementary School"},"id":14},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.75587736306181,38.44970976900612]},"properties":{"Name":"Albert F. Biella Elementary School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.70053674956878,38.47269058839859]},"properties":{"Name":"Hidden Valley Elementary School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.7366584759461,38.44062003493343]},"properties":{"Name":"Abraham Lincoln Elementary School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.72103031465292,38.46139085212495]},"properties":{"Name":"Steele Lane Elementary School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.74370853032288,38.44862029071368]},"properties":{"Name":"Helen Lehman Elementary School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.75264585415717,38.45595170852735]},"properties":{"Name":"James Monroe Elementary School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.71580271946316,38.435134281377486]},"properties":{"Name":"Luther Burbank Elementary School"},"id":26}
+]}

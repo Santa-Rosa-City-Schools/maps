@@ -1,0 +1,6 @@
+{"type":"FeatureCollection", "features": [
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.74690181083363,38.45641526634256]},"properties":{"Name":"Hilliard Comstock Middle School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.70946351719283,38.4445610720727]},"properties":{"Name":"Santa Rosa Middle School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.67075317187953,38.48092793016312]},"properties":{"Name":"Rincon Valley Middle School"}},
+{"type":"Feature","geometry":{"type":"Point","coordinates":[-122.67242830811686,38.44708848001355]},"properties":{"Name":"Herbert Slater Middle School"}}
+]}
