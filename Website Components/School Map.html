@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Santa Rosa Schools Map</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        #map { 
+            height: 800px; 
+            width: 100%;
+        }
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            z-index: 1000;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+            font-family: Arial, sans-serif;
+            font-size: 12px;
+            max-width: 200px;
+        }
+        .legend::before {
+            content: 'School Types';
+            display: block;
+            font-weight: bold;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            border-radius: 50%;
+        }
+        .school-icon {
+            font-size: 20px;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: none !important;
+        }
+        .school-icon i {
+            background: white;
+            border-radius: 50%;
+            padding: 8px;
+            box-shadow: 0 0 3px rgba(0,0,0,0.3);
+            line-height: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="map">
+        <div class="legend" id="legend"></div>
+    <script>
+        const schools = [
+            { id: 1, name: "Brook Hill Elementary School", lat: 38.438114599999999, lng: -122.6927467, type: "Elementary" },
+            { id: 2, name: "Luther Burbank Elementary School", lat: 38.435390499999997, lng: -122.71574099999999, type: "Elementary" },
+            { id: 5, name: "Helen Lehman Elementary School", lat: 38.449064399999997, lng: -122.7437429, type: "Elementary" },
+            { id: 6, name: "Albert F. Biella Elementary School", lat: 38.449588800000001, lng: -122.7560223, type: "Elementary" },
+            { id: 7, name: "Abraham Lincoln Elementary School", lat: 38.441220299999998, lng: -122.7367028, type: "Elementary" },
+            { id: 8, name: "James Monroe Elementary School", lat: 38.456093199999998, lng: -122.75278400000001, type: "Elementary" },
+            { id: 9, name: "Proctor Terrace Elementary School", lat: 38.451462300000003, lng: -122.69785210000001, type: "Elementary" },
+            { id: 11, name: "Steele Lane Elementary School", lat: 38.460694199999999, lng: -122.7206743, type: "Elementary" },
+            { id: 12, name: "Hidden Valley Elementary School", lat: 38.474095953398468, lng: -122.69963760907198, type: "Elementary" },
+            { id: 20, name: "Santa Rosa Accelerated Charter School", lat: 38.480902749999998, lng: -122.670714603185, type: "Charter" },
+            { id: 21, name: "Santa Rosa Charter School For the Arts", lat: 38.4469767, lng: -122.71417621625231, type: "Charter" },
+            { id: 22, name: "Santa Rosa French-American Charter School", lat: 38.441546500000001, lng: -122.6974026, type: "Charter" },
+            { id: 23, name: "Cesar Chavez Language Academy", lat: 38.425853500000002, lng: -122.74572499999999, type: "Charter" },
+            // { id: 25, name: "Learning House", lat: 38.435390499999997, lng: -122.71574099999999, type: "Other" },
+            { id: 31, name: "Herbert Slater Middle School", lat: 38.448257599999998, lng: -122.67262169999999, type: "Middle" },
+            { id: 32, name: "Hilliard Comstock Middle School", lat: 38.456899300000003, lng: -122.74663219999999, type: "Middle" },
+            { id: 33, name: "Rincon Valley Middle School", lat: 38.480902749999998, lng: -122.670714603185, type: "Middle" },
+            { id: 34, name: "Santa Rosa Middle School", lat: 38.444336, lng: -122.71055130000001, type: "Middle" },
+            // { id: 30, name: "Lawrence Cook Middle School", lat: 38.425853500000002, lng: -122.74572499999999, type: "Middle" },
+            { id: 50, name: "Montgomery High School", lat: 38.440588500000004, lng: -122.68273637152325, type: "High" },
+            { id: 51, name: "Piner High School", lat: 38.460771200000003, lng: -122.76940190000001, type: "High" },
+            { id: 52, name: "Santa Rosa High School", lat: 38.452058999999998, lng: -122.7183244, type: "High" },
+            { id: 53, name: "Elsie Allen High School", lat: 38.405000000000001, lng: -122.7342393, type: "High" },
+            { id: 54, name: "Maria Carrillo High School", lat: 38.479991900000002, lng: -122.658233, type: "High" },
+            { id: 60, name: "Ridgway High School", lat: 38.449703499999998, lng: -122.7223367, type: "High" }
+        ];
+
+        const typeColors = {
+            "Elementary": "#2196F3", // Blue
+            "Middle": "#4CAF50",    // Green
+            "High": "#F44336",      // Red
+            "Charter": "#9C27B0",   // Purple
+            "Other": "#FF9800"      // Orange
+        };
+
+        const map = L.map('map').setView([38.443, -122.714], 13);
+        
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Create legend
+        const legend = document.getElementById('legend');
+        for (const type in typeColors) {
+            const legendItem = document.createElement('div');
+            legendItem.classList.add('legend-item');
+            legendItem.innerHTML = `
+                <div class="legend-color" style="background-color: ${typeColors[type]}"></div>
+                <span>${type}</span>
+            `;
+            legend.appendChild(legendItem);
+        }
+
+        // Add markers
+        schools.forEach(school => {
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'school-icon';
+            iconDiv.innerHTML = '<i class="fas fa-school"></i>';
+            iconDiv.style.color = typeColors[school.type];
+            
+            const schoolIcon = L.divIcon({
+                html: iconDiv,
+                iconSize: [32, 32],
+                iconAnchor: [16, 16],
+                className: 'school-icon'
+            });
+            
+            const marker = L.marker([school.lat, school.lng], {icon: schoolIcon})
+                .addTo(map)
+                .bindPopup(`<b>${school.name}</b><br>Type: ${school.type}`);
+            
+            // Add hover tooltip
+            marker.bindTooltip(school.name, {
+                permanent: false,
+                direction: 'top',
+                offset: [0, -10],
+                className: 'school-tooltip'
+            });
+        });
+    </script>
+</body>
+</html>
