@@ -105,13 +105,18 @@
             z-index: 999;
         }
         .label-text {
-            background: white;
+            background: none;
             border: none;
-            border-radius: 4px;
             padding: 2px 6px;
             font-size: 12px;
             pointer-events: none;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            color: black;
+            text-shadow: 
+                -1px -1px 0 white,
+                1px -1px 0 white,
+                -1px 1px 0 white,
+                1px 1px 0 white;
+            font-weight: bold;
         }
     </style>
 </head>
