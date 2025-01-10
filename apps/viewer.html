@@ -54,13 +54,6 @@
         .menu button.clear:hover {
             background: #c82333;
         }
-        .layer-name {
-            padding: 4px 8px;
-            border-radius: 4px;
-            margin-right: 4px;
-            color: white;
-            font-size: 12px;
-        }
         .style-editor {
             position: absolute;
             top: 50%;
@@ -71,52 +64,36 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
             z-index: 1000;
-            min-width: 300px;
+            min-width: 400px;
             max-height: 80vh;
             overflow-y: auto;
         }
-        .style-editor h3 {
-            margin-top: 0;
-            margin-bottom: 15px;
-        }
-        .style-editor label {
-            display: block;
-            margin-bottom: 5px;
-        }
-        .style-editor input {
-            margin-bottom: 10px;
-            width: 100%;
-        }
-        .style-editor input[type="color"] {
-            height: 40px;
-        }
-        .style-editor .buttons {
-            display: flex;
-            gap: 10px;
-            margin-top: 15px;
-        }
-        .style-editor .buttons button {
-            flex: 1;
-        }
-        .feature-list {
-            margin-top: 15px;
-            border-top: 1px solid #ddd;
-            padding-top: 15px;
-        }
         .feature-item {
-            display: flex;
-            align-items: center;
+            display: grid;
+            grid-template-columns: 1fr auto auto auto auto;
             gap: 8px;
             margin-bottom: 10px;
             padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
+            align-items: center;
         }
-        .feature-color {
+        .feature-item input[type="color"] {
+            width: 50px;
+            height: 30px;
+        }
+        .feature-item input[type="number"] {
             width: 60px;
         }
-        .feature-label {
-            flex-grow: 1;
+        .feature-item label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 2px;
+        }
+        .feature-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
         }
         .backdrop {
             position: fixed;
@@ -152,22 +129,28 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <script>
+        // Initialize map
         const map = L.map('map').setView([0, 0], 2);
-        
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
         const layerControl = L.control.layers(null, null, { collapsed: false }).addTo(map);
         const activeLayers = new Map();
-        
-        const colors = [
-            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD',
-            '#D4A5A5', '#9B59B6', '#3498DB', '#E67E22', '#2ECC71'
-        ];
 
         function getRandomColor() {
             return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+        }
+
+        function getFeatureStyle(feature) {
+            const props = feature.properties || {};
+            return {
+                color: props.stroke || props.color || getRandomColor(),
+                weight: props['stroke-width'] || props.weight || 2,
+                opacity: props['stroke-opacity'] || props.opacity || 1,
+                fillColor: props.fill || props.fillColor || props.stroke || getRandomColor(),
+                fillOpacity: props['fill-opacity'] || props.fillOpacity || 0.5
+            };
         }
 
         function showStyleEditor(identifier) {
@@ -176,19 +159,44 @@
 
             let featuresHtml = '';
             layer.eachLayer(featureLayer => {
-                const style = featureLayer.options || featureLayer.feature.properties.style || {};
-                const label = featureLayer.feature.properties.label || '';
-                const color = style.color || style.fillColor || getRandomColor();
-                
+                const feature = featureLayer.feature;
+                const style = getFeatureStyle(feature);
+                const name = feature.properties.Name || feature.properties.name || '';
+
                 featuresHtml += `
                     <div class="feature-item">
-                        <input type="color" class="feature-color" 
-                               value="${color}" 
-                               data-feature-id="${featureLayer.feature.id || Math.random()}">
-                        <input type="text" class="feature-label" 
-                               placeholder="Enter label" 
-                               value="${label}"
-                               data-feature-id="${featureLayer.feature.id || Math.random()}">
+                        <div class="feature-controls">
+                            <label>Name</label>
+                            <input type="text" class="feature-name" 
+                                   value="${name}"
+                                   data-feature-id="${feature.id}">
+                        </div>
+                        <div class="feature-controls">
+                            <label>Stroke</label>
+                            <input type="color" class="feature-stroke" 
+                                   value="${style.color}"
+                                   data-feature-id="${feature.id}">
+                        </div>
+                        <div class="feature-controls">
+                            <label>Fill</label>
+                            <input type="color" class="feature-fill" 
+                                   value="${style.fillColor}"
+                                   data-feature-id="${feature.id}">
+                        </div>
+                        <div class="feature-controls">
+                            <label>Width</label>
+                            <input type="number" class="feature-width" 
+                                   value="${style.weight}"
+                                   min="0" max="10" step="0.5"
+                                   data-feature-id="${feature.id}">
+                        </div>
+                        <div class="feature-controls">
+                            <label>Opacity</label>
+                            <input type="number" class="feature-opacity" 
+                                   value="${style.opacity}"
+                                   min="0" max="1" step="0.1"
+                                   data-feature-id="${feature.id}">
+                        </div>
                     </div>`;
             });
 
@@ -196,14 +204,9 @@
                 <div class="backdrop">
                     <div class="style-editor">
                         <h3>Edit Features</h3>
-                        <label>Layer Name</label>
-                        <input type="text" id="layerName" value="${layer.options.layerName}">
-                        
                         <div class="feature-list">
-                            <h4>Features</h4>
                             ${featuresHtml}
                         </div>
-                        
                         <div class="buttons">
                             <button onclick="applyStyle('${identifier}')">Apply</button>
                             <button class="clear" onclick="closeStyleEditor()">Cancel</button>
@@ -224,43 +227,39 @@
         function applyStyle(identifier) {
             const layer = activeLayers.get(identifier);
             if (!layer) return;
-
-            const name = document.getElementById('layerName').value;
             
-            // Update each feature's style and label
             layer.eachLayer(featureLayer => {
-                const featureId = featureLayer.feature.id || Math.random();
-                const colorInput = document.querySelector(`.feature-color[data-feature-id="${featureId}"]`);
-                const labelInput = document.querySelector(`.feature-label[data-feature-id="${featureId}"]`);
-                
-                const color = colorInput ? colorInput.value : getRandomColor();
-                const label = labelInput ? labelInput.value : '';
+                const featureId = featureLayer.feature.id;
+                const nameInput = document.querySelector(`.feature-name[data-feature-id="${featureId}"]`);
+                const strokeInput = document.querySelector(`.feature-stroke[data-feature-id="${featureId}"]`);
+                const fillInput = document.querySelector(`.feature-fill[data-feature-id="${featureId}"]`);
+                const widthInput = document.querySelector(`.feature-width[data-feature-id="${featureId}"]`);
+                const opacityInput = document.querySelector(`.feature-opacity[data-feature-id="${featureId}"]`);
 
-                // Store label in feature properties
-                featureLayer.feature.properties.label = label;
+                // Update feature properties
+                featureLayer.feature.properties.Name = nameInput.value;
+                featureLayer.feature.properties.stroke = strokeInput.value;
+                featureLayer.feature.properties.fill = fillInput.value;
+                featureLayer.feature.properties['stroke-width'] = parseFloat(widthInput.value);
+                featureLayer.feature.properties['stroke-opacity'] = parseFloat(opacityInput.value);
+                featureLayer.feature.properties['fill-opacity'] = parseFloat(opacityInput.value);
 
-                // Apply style based on geometry type
-                if (featureLayer.setStyle) {
-                    featureLayer.setStyle({
-                        color: color,
-                        fillColor: color,
-                        weight: 2,
-                        opacity: 0.7,
-                        fillOpacity: 0.5
-                    });
-                }
+                // Apply style
+                featureLayer.setStyle({
+                    color: strokeInput.value,
+                    fillColor: fillInput.value,
+                    weight: parseFloat(widthInput.value),
+                    opacity: parseFloat(opacityInput.value),
+                    fillOpacity: parseFloat(opacityInput.value)
+                });
 
-                // Update or create label
-                if (featureLayer.getLatLng) { // Point
-                    updateLabel(featureLayer, label, featureLayer.getLatLng());
-                } else if (featureLayer.getLatLngs) { // Polygon/LineString
-                    const center = featureLayer.getBounds().getCenter();
-                    updateLabel(featureLayer, label, center);
+                // Update label
+                if (nameInput.value) {
+                    const center = featureLayer.getBounds ? featureLayer.getBounds().getCenter() : featureLayer.getLatLng();
+                    updateLabel(featureLayer, nameInput.value, center);
                 }
             });
 
-            // Update layer control
-            updateLayerControl(identifier, layer, name);
             closeStyleEditor();
         }
 
@@ -279,47 +278,8 @@
             }
         }
 
-        function updateLayerControl(identifier, layer, name) {
-            layer.options.layerName = name;
-            layerControl.removeLayer(layer);
-            const labelHtml = `
-                <div class="layer-control">
-                    <span class="layer-name" style="background-color: ${colors[0]}">${name}</span>
-                    <button class="edit-button" onclick="showStyleEditor('${identifier}')">Edit</button>
-                </div>`;
-            layerControl.addOverlay(layer, labelHtml);
-        }
-
-        function generateLayerName(url) {
-            const urlObj = new URL(url);
-            const pathParts = urlObj.pathname.split('/');
-            return pathParts[pathParts.length - 1] || 'Layer ' + (activeLayers.size + 1);
-        }
-
-        function getUrlParameters() {
-            const urlParams = new URLSearchParams(window.location.search);
-            return urlParams.getAll('url');
-        }
-
-        function shareCurrentView() {
-            if (activeLayers.size === 0) {
-                alert('Please load at least one GeoJSON layer first');
-                return;
-            }
-            
-            const urls = Array.from(activeLayers.keys());
-            const shareUrl = `${window.location.origin}${window.location.pathname}?${urls.map(url => `url=${encodeURIComponent(url)}`).join('&')}`;
-            
-            navigator.clipboard.writeText(shareUrl)
-                .then(() => alert('Shareable link copied to clipboard!'))
-                .catch(() => {
-                    prompt('Copy this shareable link:', shareUrl);
-                });
-        }
-
         function clearAllLayers() {
             activeLayers.forEach((layer) => {
-                // Remove labels
                 layer.eachLayer(featureLayer => {
                     if (featureLayer._label) {
                         featureLayer._label.remove();
@@ -364,8 +324,6 @@
         });
 
         function addGeoJSONLayer(data, identifier) {
-            const layerName = generateLayerName(identifier);
-
             // Assign unique IDs to features if they don't have them
             if (data.features) {
                 data.features.forEach((feature, index) => {
@@ -376,32 +334,17 @@
             }
 
             const layer = L.geoJSON(data, {
-                style: (feature) => ({
-                    color: getRandomColor(),
-                    weight: 2,
-                    opacity: 0.7,
-                    fillOpacity: 0.5
-                }),
-                pointToLayer: (feature, latlng) => {
-                    return L.circleMarker(latlng, {
-                        radius: 8,
-                        fillColor: getRandomColor(),
-                        color: '#fff',
-                        weight: 1,
-                        opacity: 1,
-                        fillOpacity: 0.8
-                    });
-                },
+                style: getFeatureStyle,
                 onEachFeature: (feature, layer) => {
-                    // Initialize empty label
-                    feature.properties.label = '';
-                },
-                layerName: layerName
+                    if (feature.properties.Name) {
+                        const center = layer.getBounds ? layer.getBounds().getCenter() : layer.getLatLng();
+                        updateLabel(layer, feature.properties.Name, center);
+                    }
+                }
             }).addTo(map);
 
             const labelHtml = `
                 <div class="layer-control">
-                    <span class="layer-name" style="background-color: ${colors[0]}">${layerName}</span>
                     <button class="edit-button" onclick="showStyleEditor('${identifier}')">Edit</button>
                 </div>`;
             layerControl.addOverlay(layer, labelHtml);
@@ -424,6 +367,11 @@
                 urls.forEach(url => loadFromUrl(url));
             }
         });
-        </script>
-    </body>
+
+        function getUrlParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.getAll('url');
+        }
+    </script>
+</body>
 </html>
