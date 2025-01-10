@@ -118,6 +118,21 @@
                 1px 1px 0 white;
             font-weight: bold;
         }
+        .layer-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .layer-control button {
+            padding: 2px 6px;
+            font-size: 12px;
+        }
+        .layer-control label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -283,6 +298,27 @@
             }
         }
 
+        function toggleLabels(identifier, show) {
+            const layer = activeLayers.get(identifier);
+            if (!layer) return;
+
+            layer.eachLayer(featureLayer => {
+                if (featureLayer._label) {
+                    if (show) {
+                        if (!map.hasLayer(featureLayer._label)) {
+                            featureLayer._label.addTo(map);
+                        }
+                    } else {
+                        featureLayer._label.remove();
+                    }
+                } else if (show && featureLayer.feature.properties.Name) {
+                    // Recreate label if it doesn't exist but should be shown
+                    const center = featureLayer.getBounds ? featureLayer.getBounds().getCenter() : featureLayer.getLatLng();
+                    updateLabel(featureLayer, featureLayer.feature.properties.Name, center);
+                }
+            });
+        }
+
         function clearAllLayers() {
             activeLayers.forEach((layer) => {
                 layer.eachLayer(featureLayer => {
@@ -351,6 +387,12 @@
             const labelHtml = `
                 <div class="layer-control">
                     <button class="edit-button" onclick="showStyleEditor('${identifier}')">Edit</button>
+                    <label>
+                        <input type="checkbox" 
+                               checked 
+                               onchange="toggleLabels('${identifier}', this.checked)">
+                        Labels
+                    </label>
                 </div>`;
             layerControl.addOverlay(layer, labelHtml);
             
@@ -364,6 +406,32 @@
                 }, L.latLngBounds([]));
                 map.fitBounds(bounds);
             }
+        }
+
+        function shareCurrentView() {
+            const urls = Array.from(activeLayers.keys());
+            if (urls.length === 0) {
+                alert('No layers to share');
+                return;
+            }
+
+            const shareUrl = new URL(window.location.href);
+            shareUrl.search = ''; // Clear existing parameters
+            urls.forEach(url => shareUrl.searchParams.append('url', url));
+            
+            // Copy to clipboard
+            navigator.clipboard.writeText(shareUrl.toString())
+                .then(() => alert('Share URL copied to clipboard!'))
+                .catch(() => {
+                    // Fallback if clipboard API fails
+                    const textarea = document.createElement('textarea');
+                    textarea.value = shareUrl.toString();
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    alert('Share URL copied to clipboard!');
+                });
         }
 
         window.addEventListener('load', () => {
