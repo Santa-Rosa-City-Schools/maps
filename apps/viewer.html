@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Layer GeoJSON Viewer</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            width: 100%;
+        }
+        #map {
+            width: 100%;
+            height: calc(100% - 60px);
+        }
+        .menu {
+            padding: 10px;
+            background: #f8f9fa;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .menu input[type="text"] {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .menu button {
+            padding: 8px 16px;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        .menu button:hover {
+            background: #0056b3;
+        }
+        .menu button.share {
+            background: #28a745;
+        }
+        .menu button.share:hover {
+            background: #218838;
+        }
+        .menu button.clear {
+            background: #dc3545;
+        }
+        .menu button.clear:hover {
+            background: #c82333;
+        }
+        .layer-name {
+            padding: 4px 8px;
+            border-radius: 4px;
+            margin-right: 4px;
+            color: white;
+            font-size: 12px;
+        }
+        .style-editor {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            min-width: 300px;
+        }
+        .style-editor h3 {
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        .style-editor label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .style-editor input {
+            margin-bottom: 10px;
+            width: 100%;
+        }
+        .style-editor input[type="color"] {
+            height: 40px;
+        }
+        .style-editor .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .style-editor .buttons button {
+            flex: 1;
+        }
+        .layer-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .edit-button {
+            background: #6c757d;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .edit-button:hover {
+            background: #5a6268;
+        }
+        .backdrop {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+    <div class="menu">
+        <input type="text" id="geojsonUrl" placeholder="Enter GeoJSON URL">
+        <button onclick="loadFromUrl()">Add Layer</button>
+        <input type="file" id="fileInput" accept=".geojson,.json" style="display: none" multiple>
+        <button onclick="document.getElementById('fileInput').click()">Upload Files</button>
+        <button class="share" onclick="shareCurrentView()">Share Map</button>
+        <button class="clear" onclick="clearAllLayers()">Clear All</button>
+    </div>
+    <div id="map"></div>
+    <div id="styleEditor" style="display: none;"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script>
+        // Initialize the map
+        const map = L.map('map').setView([0, 0], 2);
+        
+        // Add OpenStreetMap tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Create layer control
+        const layerControl = L.control.layers(null, null, { collapsed: false }).addTo(map);
+        
+        // Store active layers with their styles
+        const activeLayers = new Map();
+        
+        // Color palette for different layers
+        const colors = [
+            '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', '#FFEEAD',
+            '#D4A5A5', '#9B59B6', '#3498DB', '#E67E22', '#2ECC71'
+        ];
+        let colorIndex = 0;
+
+        // Function to get next color
+        function getNextColor() {
+            const color = colors[colorIndex];
+            colorIndex = (colorIndex + 1) % colors.length;
+            return color;
+        }
+
+        // Function to show style editor
+        function showStyleEditor(identifier) {
+            const layer = activeLayers.get(identifier);
+            if (!layer) return;
+
+            const style = layer.options.style();
+            const pointStyle = layer.options.pointToLayer ? {
+                radius: layer.options.pointToLayer({}, {}).options.radius,
+                fillColor: layer.options.pointToLayer({}, {}).options.fillColor,
+                fillOpacity: layer.options.pointToLayer({}, {}).options.fillOpacity
+            } : null;
+
+            const editorHtml = `
+                <div class="backdrop">
+                    <div class="style-editor">
+                        <h3>Edit Layer Style</h3>
+                        <label>Layer Name</label>
+                        <input type="text" id="layerName" value="${layer.options.layerName}">
+                        
+                        <label>Color</label>
+                        <input type="color" id="layerColor" value="${style.color}">
+                        
+                        <label>Opacity (0-1)</label>
+                        <input type="range" id="layerOpacity" min="0" max="1" step="0.1" value="${style.opacity}">
+                        
+                        <label>Line Weight</label>
+                        <input type="range" id="layerWeight" min="1" max="10" value="${style.weight}">
+                        
+                        ${pointStyle ? `
+                            <label>Point Radius</label>
+                            <input type="range" id="pointRadius" min="2" max="20" value="${pointStyle.radius}">
+                            
+                            <label>Point Fill Opacity</label>
+                            <input type="range" id="pointFillOpacity" min="0" max="1" step="0.1" value="${pointStyle.fillOpacity}">
+                        ` : ''}
+                        
+                        <div class="buttons">
+                            <button onclick="applyStyle('${identifier}')">Apply</button>
+                            <button class="clear" onclick="closeStyleEditor()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('styleEditor').innerHTML = editorHtml;
+            document.getElementById('styleEditor').style.display = 'block';
+        }
+
+        // Function to close style editor
+        function closeStyleEditor() {
+            document.getElementById('styleEditor').style.display = 'none';
+            document.getElementById('styleEditor').innerHTML = '';
+        }
+
+        // Function to apply style changes
+        function applyStyle(identifier) {
+            const layer = activeLayers.get(identifier);
+            if (!layer) return;
+
+            const color = document.getElementById('layerColor').value;
+            const opacity = parseFloat(document.getElementById('layerOpacity').value);
+            const weight = parseInt(document.getElementById('layerWeight').value);
+            const name = document.getElementById('layerName').value;
+
+            // Update layer style
+            layer.setStyle({
+                color: color,
+                opacity: opacity,
+                weight: weight
+            });
+
+            // Update point style if applicable
+            if (document.getElementById('pointRadius')) {
+                const radius = parseInt(document.getElementById('pointRadius').value);
+                const fillOpacity = parseFloat(document.getElementById('pointFillOpacity').value);
+                
+                layer.options.pointToLayer = (feature, latlng) => {
+                    return L.circleMarker(latlng, {
+                        radius: radius,
+                        fillColor: color,
+                        color: '#fff',
+                        weight: 1,
+                        opacity: opacity,
+                        fillOpacity: fillOpacity
+                    });
+                };
+                
+                // Recreate layer to apply point style changes
+                const geoJSON = layer.toGeoJSON();
+                map.removeLayer(layer);
+                const newLayer = L.geoJSON(geoJSON, {
+                    style: layer.options.style,
+                    pointToLayer: layer.options.pointToLayer
+                }).addTo(map);
+                
+                activeLayers.set(identifier, newLayer);
+                updateLayerControl(identifier, newLayer, name, color);
+            }
+
+            // Update layer control
+            updateLayerControl(identifier, layer, name, color);
+            closeStyleEditor();
+        }
+
+        // Function to update layer control
+        function updateLayerControl(identifier, layer, name, color) {
+            layer.options.layerName = name;
+            
+            // Remove old layer from control
+            layerControl.removeLayer(layer);
+            
+            // Add updated layer to control
+            const labelHtml = `
+                <div class="layer-control">
+                    <span class="layer-name" style="background-color: ${color}">${name}</span>
+                    <button class="edit-button" onclick="showStyleEditor('${identifier}')">Edit</button>
+                </div>`;
+            layerControl.addOverlay(layer, labelHtml);
+        }
+
+        // Function to generate layer name
+        function generateLayerName(url) {
+            const urlObj = new URL(url);
+            const pathParts = urlObj.pathname.split('/');
+            return pathParts[pathParts.length - 1] || 'Layer ' + (activeLayers.size + 1);
+        }
+
+        // Function to get URL parameters
+        function getUrlParameters() {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.getAll('url');
+        }
+
+        // Function to create shareable link
+        function shareCurrentView() {
+            if (activeLayers.size === 0) {
+                alert('Please load at least one GeoJSON layer first');
+                return;
+            }
+            
+            const urls = Array.from(activeLayers.keys());
+            const shareUrl = `${window.location.origin}${window.location.pathname}?${urls.map(url => `url=${encodeURIComponent(url)}`).join('&')}`;
+            
+            navigator.clipboard.writeText(shareUrl)
+                .then(() => alert('Shareable link copied to clipboard!'))
+                .catch(() => {
+                    prompt('Copy this shareable link:', shareUrl);
+                });
+        }
+
+        // Function to clear all layers
+        function clearAllLayers() {
+            activeLayers.forEach((layer) => {
+                map.removeLayer(layer);
+                layerControl.removeLayer(layer);
+            });
+            activeLayers.clear();
+            colorIndex = 0;
+        }
+
+        // Function to load GeoJSON from URL
+        async function loadFromUrl(url) {
+            const urlToLoad = url || document.getElementById('geojsonUrl').value;
+            if (!urlToLoad) return;
+
+            try {
+                const response = await fetch(urlToLoad);
+                const data = await response.json();
+                addGeoJSONLayer(data, urlToLoad);
+                document.getElementById('geojsonUrl').value = '';
+            } catch (error) {
+                alert('Error loading GeoJSON: ' + error.message);
+            }
+        }
+
+        // Handle file upload
+        document.getElementById('fileInput').addEventListener('change', (event) => {
+            const files = event.target.files;
+            if (!files.length) return;
+
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        addGeoJSONLayer(data, file.name);
+                    } catch (error) {
+                        alert(`Error parsing ${file.name}: ${error.message}`);
+                    }
+                };
+                reader.readAsText(file);
+            });
+        });
+
+        // Function to add GeoJSON layer
+        function addGeoJSONLayer(data, identifier) {
+            const color = getNextColor();
+            const layerName = generateLayerName(identifier);
+
+            // Create the GeoJSON layer with styling
+            const layer = L.geoJSON(data, {
+                style: () => ({
+                    color: color,
+                    weight: 2,
+                    opacity: 0.7
+                }),
+                pointToLayer: (feature, latlng) => {
+                    return L.circleMarker(latlng, {
+                        radius: 8,
+                        fillColor: color,
+                        color: '#fff',
+                        weight: 1,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    });
+                },
+                layerName: layerName
+            }).addTo(map);
+
+            // Add to layer control with edit button
+            const labelHtml = `
+                <div class="layer-control">
+                    <span class="layer-name" style="background-color: ${color}">${layerName}</span>
+                    <button class="edit-button" onclick="showStyleEditor('${identifier}')">Edit</button>
+                </div>`;
+            layerControl.addOverlay(layer, labelHtml);
+            
+            // Store in active layers
+            activeLayers.set(identifier, layer);
+
+            // Fit map to include new layer
+            if (activeLayers.size === 1) {
+                map.fitBounds(layer.getBounds());
+            } else {
+                const bounds = Array.from(activeLayers.values()).reduce((acc, layer) => {
+                    return acc.extend(layer.getBounds());
+                }, L.latLngBounds([]));
+                map.fitBounds(bounds);
+            }
+        }
+
+        // Load layers from URL parameters on page load
+        window.addEventListener('load', () => {
+            const urls = getUrlParameters();
+            if (urls.length) {
+                urls.forEach(url => loadFromUrl(url));
+            }
+        });
+    </script>
+</body>
+</html>
