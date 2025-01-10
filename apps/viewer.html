@@ -165,7 +165,7 @@
         function getFeatureStyle(feature) {
             const props = feature.properties || {};
             return {
-                color: props.stroke || props.color || getRandomColor(),
+                color: props.stroke || props.color || '#000000',
                 weight: props['stroke-width'] || props.weight || 2,
                 opacity: props['stroke-opacity'] || props.opacity || 1,
                 fillColor: props.fill || props.fillColor || props.stroke || getRandomColor(),
