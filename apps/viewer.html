@@ -108,7 +108,7 @@
             background: none;
             border: none;
             padding: 2px 6px;
-            font-size: 12px;
+            font-size: 11px;
             pointer-events: none;
             color: black;
             text-shadow: 
@@ -132,6 +132,27 @@
             align-items: center;
             gap: 4px;
             font-size: 12px;
+        }
+        .feature-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto auto auto auto;
+            gap: 8px;
+            margin-bottom: 10px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            align-items: center;
+        }
+        
+        .visibility-toggle {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .visibility-toggle input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
         }
     </style>
 </head>
@@ -182,9 +203,16 @@
                 const feature = featureLayer.feature;
                 const style = getFeatureStyle(feature);
                 const name = feature.properties.Name || feature.properties.name || feature.properties.school || feature.properties.School || '';
+                const isVisible = !feature.properties.hidden; // New property to track visibility
 
                 featuresHtml += `
                     <div class="feature-item">
+                        <div class="visibility-toggle">
+                            <input type="checkbox" class="feature-visible" 
+                                   ${isVisible ? 'checked' : ''}
+                                   data-feature-id="${feature.id}">
+                            <label>Visible</label>
+                        </div>
                         <div class="feature-controls">
                             <label>Name</label>
                             <input type="text" class="feature-name" 
@@ -250,6 +278,7 @@
             
             layer.eachLayer(featureLayer => {
                 const featureId = featureLayer.feature.id;
+                const visibleInput = document.querySelector(`.feature-visible[data-feature-id="${featureId}"]`);
                 const nameInput = document.querySelector(`.feature-name[data-feature-id="${featureId}"]`);
                 const strokeInput = document.querySelector(`.feature-stroke[data-feature-id="${featureId}"]`);
                 const fillInput = document.querySelector(`.feature-fill[data-feature-id="${featureId}"]`);
@@ -257,6 +286,7 @@
                 const opacityInput = document.querySelector(`.feature-opacity[data-feature-id="${featureId}"]`);
 
                 // Update feature properties
+                featureLayer.feature.properties.hidden = !visibleInput.checked;
                 featureLayer.feature.properties.Name = nameInput.value;
                 featureLayer.feature.properties.stroke = strokeInput.value;
                 featureLayer.feature.properties.fill = fillInput.value;
@@ -264,19 +294,36 @@
                 featureLayer.feature.properties['stroke-opacity'] = parseFloat(opacityInput.value);
                 featureLayer.feature.properties['fill-opacity'] = parseFloat(opacityInput.value);
 
-                // Apply style
-                featureLayer.setStyle({
-                    color: strokeInput.value,
-                    fillColor: fillInput.value,
-                    weight: parseFloat(widthInput.value),
-                    opacity: parseFloat(opacityInput.value),
-                    fillOpacity: parseFloat(opacityInput.value)
-                });
+                // Apply style and visibility
+                if (visibleInput.checked) {
+                    const style = {
+                        color: strokeInput.value,
+                        fillColor: fillInput.value,
+                        weight: parseFloat(widthInput.value),
+                        opacity: parseFloat(opacityInput.value),
+                        fillOpacity: parseFloat(opacityInput.value)
+                    };
+
+                    if (featureLayer instanceof L.CircleMarker) {
+                        // For circle markers, also set the radius
+                        style.radius = 5;
+                    }
+                    
+                    featureLayer.setStyle(style);
+                    
+                    if (!map.hasLayer(featureLayer)) {
+                        featureLayer.addTo(map);
+                    }
+                } else {
+                    map.removeLayer(featureLayer);
+                }
 
                 // Update label
-                if (nameInput.value) {
+                if (nameInput.value && visibleInput.checked) {
                     const center = featureLayer.getBounds ? featureLayer.getBounds().getCenter() : featureLayer.getLatLng();
                     updateLabel(featureLayer, nameInput.value, center);
+                } else if (featureLayer._label) {
+                    featureLayer._label.remove();
                 }
             });
 
@@ -364,8 +411,42 @@
             });
         });
 
+        function getLayerName(identifier) {
+            // Remove file extension
+            let name = identifier.split('.').slice(0, -1).join('.');
+            // If empty (no extension was present), use the original identifier
+            if (!name) name = identifier;
+            
+            // Get the last part of the path
+            name = name.split('/').pop();
+            
+            // Clean up URL encoding
+            name = decodeURIComponent(name);
+            
+            // Replace underscores and dashes with spaces
+            name = name.replace(/[_-]/g, ' ');
+            
+            // Capitalize first letter of each word
+            name = name.split(' ')
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+                .join(' ');
+                
+            return name;
+        }
+
+        function getPointStyle(feature) {
+            const props = feature.properties || {};
+            return {
+                radius: 5,
+                fillColor: props.fill || props.fillColor || props.stroke || getRandomColor(),
+                color: props.stroke || props.color || '#000000',
+                weight: props['stroke-width'] || props.weight || 2,
+                opacity: props['stroke-opacity'] || props.opacity || 1,
+                fillOpacity: props['fill-opacity'] || props.fillOpacity || 0.5
+            };
+        }
+
         function addGeoJSONLayer(data, identifier) {
-            // Assign unique IDs to features if they don't have them
             if (data.features) {
                 data.features.forEach((feature, index) => {
                     if (!feature.id) {
@@ -376,21 +457,29 @@
 
             const layer = L.geoJSON(data, {
                 style: getFeatureStyle,
+                pointToLayer: function(feature, latlng) {
+                    return L.circleMarker(latlng, getPointStyle(feature));
+                },
                 onEachFeature: (feature, layer) => {
-                    if (feature.properties.Name) {
+                    if (feature.properties.hidden) {
+                        map.removeLayer(layer);
+                    }
+                    if (feature.properties.Name && !feature.properties.hidden) {
                         const center = layer.getBounds ? layer.getBounds().getCenter() : layer.getLatLng();
                         updateLabel(layer, feature.properties.Name, center);
                     }
                 }
             }).addTo(map);
 
+            const layerName = getLayerName(identifier);
             const labelHtml = `
                 <div class="layer-control">
+                    <span style="font-weight: bold; margin-right: 8px;">${layerName}</span>
                     <button class="edit-button" onclick="showStyleEditor('${identifier}')">Edit</button>
                     <label>
                         <input type="checkbox" 
-                               checked 
-                               onchange="toggleLabels('${identifier}', this.checked)">
+                            checked 
+                            onchange="toggleLabels('${identifier}', this.checked)">
                         Labels
                     </label>
                 </div>`;
@@ -398,6 +487,7 @@
             
             activeLayers.set(identifier, layer);
 
+            // Previous bounds fitting code remains the same
             if (activeLayers.size === 1) {
                 map.fitBounds(layer.getBounds());
             } else {
@@ -407,7 +497,6 @@
                 map.fitBounds(bounds);
             }
         }
-
         function shareCurrentView() {
             const urls = Array.from(activeLayers.keys());
             if (urls.length === 0) {
