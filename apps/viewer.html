@@ -181,7 +181,7 @@
             layer.eachLayer(featureLayer => {
                 const feature = featureLayer.feature;
                 const style = getFeatureStyle(feature);
-                const name = feature.properties.Name || feature.properties.name || '';
+                const name = feature.properties.Name || feature.properties.name || feature.properties.school || feature.properties.School || '';
 
                 featuresHtml += `
                     <div class="feature-item">
