@@ -23,6 +23,8 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            position: relative;
+            z-index: 1000;
         }
         .menu input[type="text"] {
             flex-grow: 1;
@@ -154,10 +156,50 @@
             width: 16px;
             height: 16px;
         }
+        
+        /* Dropdown styling */
+        .layers-dropdown {
+            position: relative;
+            display: inline-block;
+            z-index: 1001;
+        }
+        
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #f9f9f9;
+            min-width: 220px;
+            box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+            z-index: 1001;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .dropdown-content a {
+            color: black;
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            cursor: pointer;
+        }
+        
+        .dropdown-content a:hover {
+            background-color: #f1f1f1;
+        }
+        
+        .layers-dropdown:hover .dropdown-content {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div class="menu">
+        <div class="layers-dropdown">
+            <button>Add Predefined Layer ▼</button>
+            <div class="dropdown-content" id="layersDropdown">
+                <!-- Dropdown items will be populated by JavaScript -->
+            </div>
+        </div>
         <input type="text" id="geojsonUrl" placeholder="Enter GeoJSON URL">
         <button onclick="loadFromUrl()">Add Layer</button>
         <input type="file" id="fileInput" accept=".geojson,.json" style="display: none" multiple>
@@ -178,6 +220,39 @@
 
         const layerControl = L.control.layers(null, null, { collapsed: false }).addTo(map);
         const activeLayers = new Map();
+
+        // Define hardcoded layers
+        const predefinedLayers = [
+            {
+                name: "SRCS School Locations - All",
+                url: "https://raw.githubusercontent.com/Santa-Rosa-City-Schools/maps/refs/heads/main/General/School_Locations.geojson"
+            },
+            {
+                name: "SRCS School Locations - Elementary",
+                url: "https://github.com/Santa-Rosa-City-Schools/maps/raw/refs/heads/main/General/School_Locations_Elementary.geojson"
+            },
+            {
+                name: "SRCS School Locations - Middle",
+                url: "https://github.com/Santa-Rosa-City-Schools/maps/raw/refs/heads/main/General/School_Locations_Middle.geojson"
+            },
+            {
+                name: "SRCS School Locations - High",
+                url: "https://github.com/Santa-Rosa-City-Schools/maps/raw/refs/heads/main/General/School_Locations_High.geojson"
+            },
+            {
+                name: "SRCS School Locations - Charter",
+                url: "https://github.com/Santa-Rosa-City-Schools/maps/raw/refs/heads/main/General/School_Locations_Charter.geojson"
+            }
+        ];
+
+        // Populate dropdown menu
+        const dropdown = document.getElementById('layersDropdown');
+        predefinedLayers.forEach(layer => {
+            const link = document.createElement('a');
+            link.textContent = layer.name;
+            link.onclick = () => loadFromUrl(layer.url);
+            dropdown.appendChild(link);
+        });
 
         function getRandomColor() {
             return '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
@@ -412,6 +487,12 @@
         });
 
         function getLayerName(identifier) {
+            // Check if it's one of our predefined layers
+            const predefined = predefinedLayers.find(layer => layer.url === identifier);
+            if (predefined) {
+                return predefined.name;
+            }
+            
             // Remove file extension
             let name = identifier.split('.').slice(0, -1).join('.');
             // If empty (no extension was present), use the original identifier
