@@ -190,18 +190,47 @@
         .layers-dropdown:hover .dropdown-content {
             display: block;
         }
+        
+        /* Updated overlay controls */
+        .leaflet-control-layers {
+            box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+            border-radius: 5px;
+            background: #fff;
+        }
+        
+        .leaflet-control-layers-list {
+            margin-bottom: 0;
+        }
+        
+        .leaflet-control-layers-selector {
+            margin-right: 5px;
+        }
+        
+        /* Style for the layer control items to align in a single line */
+        .leaflet-control-layers-overlays label {
+            display: flex;
+            align-items: center;
+            white-space: nowrap;
+            margin: 3px 0;
+        }
+        
+        .leaflet-control-layers-overlays .layer-action-buttons {
+            display: flex;
+            align-items: center;
+            margin-left: 8px;
+        }
     </style>
 </head>
 <body>
     <div class="menu">
+        <input type="text" id="geojsonUrl" placeholder="Enter GeoJSON URL">
+        <button onclick="loadFromUrl()">Add Layer</button>
         <div class="layers-dropdown">
-            <button>Add Predefined Layer ▼</button>
+            <button>Add School Locations ▼</button>
             <div class="dropdown-content" id="layersDropdown">
                 <!-- Dropdown items will be populated by JavaScript -->
             </div>
         </div>
-        <input type="text" id="geojsonUrl" placeholder="Enter GeoJSON URL">
-        <button onclick="loadFromUrl()">Add Layer</button>
         <input type="file" id="fileInput" accept=".geojson,.json" style="display: none" multiple>
         <button onclick="document.getElementById('fileInput').click()">Upload Files</button>
         <button class="share" onclick="shareCurrentView()">Share Map</button>
@@ -220,27 +249,28 @@
 
         const layerControl = L.control.layers(null, null, { collapsed: false }).addTo(map);
         const activeLayers = new Map();
+        const layerLabelsVisible = new Map(); // Track label visibility state
 
         // Define hardcoded layers
         const predefinedLayers = [
             {
-                name: "SRCS School Locations - All",
+                name: "Locations All Schools",
                 url: "https://raw.githubusercontent.com/Santa-Rosa-City-Schools/maps/refs/heads/main/General/School_Locations.geojson"
             },
             {
-                name: "SRCS School Locations - Elementary",
+                name: "Locations Elementary",
                 url: "https://raw.githubusercontent.com/Santa-Rosa-City-Schools/maps/refs/heads/main/General/School_Locations_Elementary.geojson"
             },
             {
-                name: "SRCS School Locations - Middle",
+                name: "Locations Middle",
                 url: "https://raw.githubusercontent.com/Santa-Rosa-City-Schools/maps/refs/heads/main/General/School_Locations_Middle.geojson"
             },
             {
-                name: "SRCS School Locations - High",
+                name: "Locations High",
                 url: "https://raw.githubusercontent.com/Santa-Rosa-City-Schools/maps/refs/heads/main/General/School_Locations_High.geojson"
             },
             {
-                name: "SRCS School Locations - Charter",
+                name: "Locations Charter",
                 url: "https://raw.githubusercontent.com/Santa-Rosa-City-Schools/maps/refs/heads/main/General/School_Locations_Charter.geojson"
             }
         ];
@@ -263,7 +293,7 @@
             return {
                 color: props.stroke || props.color || '#000000',
                 weight: props['stroke-width'] || props.weight || 2,
-                opacity: props['stroke-opacity'] || props.opacity || 1,
+                opacity: props['stroke-opacity'] || props.opacity || 0.5,
                 fillColor: props.fill || props.fillColor || props.stroke || getRandomColor(),
                 fillOpacity: props['fill-opacity'] || props.fillOpacity || 0.5
             };
@@ -272,6 +302,9 @@
         function showStyleEditor(identifier) {
             const layer = activeLayers.get(identifier);
             if (!layer) return;
+
+            // Get the current label visibility state
+            const labelsVisible = layerLabelsVisible.get(identifier) !== false; // Default to true if undefined
 
             let featuresHtml = '';
             layer.eachLayer(featureLayer => {
@@ -327,6 +360,12 @@
                 <div class="backdrop">
                     <div class="style-editor">
                         <h3>Edit Features</h3>
+                        <div class="layer-settings" style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee;">
+                            <label style="display: flex; align-items: center; gap: 8px;">
+                                <input type="checkbox" id="layer-labels-toggle" ${labelsVisible ? 'checked' : ''}>
+                                Show Labels
+                            </label>
+                        </div>
                         <div class="feature-list">
                             ${featuresHtml}
                         </div>
@@ -350,6 +389,13 @@
         function applyStyle(identifier) {
             const layer = activeLayers.get(identifier);
             if (!layer) return;
+            
+            // Get the labels toggle state
+            const labelsToggle = document.getElementById('layer-labels-toggle');
+            const showLabels = labelsToggle ? labelsToggle.checked : true;
+            
+            // Update the stored visibility state
+            layerLabelsVisible.set(identifier, showLabels);
             
             layer.eachLayer(featureLayer => {
                 const featureId = featureLayer.feature.id;
@@ -393,12 +439,13 @@
                     map.removeLayer(featureLayer);
                 }
 
-                // Update label
-                if (nameInput.value && visibleInput.checked) {
+                // Update label based on both feature visibility and layer label toggle
+                if (nameInput.value && visibleInput.checked && showLabels) {
                     const center = featureLayer.getBounds ? featureLayer.getBounds().getCenter() : featureLayer.getLatLng();
                     updateLabel(featureLayer, nameInput.value, center);
                 } else if (featureLayer._label) {
                     featureLayer._label.remove();
+                    delete featureLayer._label;
                 }
             });
 
@@ -421,22 +468,21 @@
         }
 
         function toggleLabels(identifier, show) {
+            // Update the stored visibility state
+            layerLabelsVisible.set(identifier, show);
+            
             const layer = activeLayers.get(identifier);
             if (!layer) return;
 
             layer.eachLayer(featureLayer => {
-                if (featureLayer._label) {
-                    if (show) {
-                        if (!map.hasLayer(featureLayer._label)) {
-                            featureLayer._label.addTo(map);
-                        }
-                    } else {
-                        featureLayer._label.remove();
-                    }
-                } else if (show && featureLayer.feature.properties.Name) {
-                    // Recreate label if it doesn't exist but should be shown
+                if (show && featureLayer.feature.properties.Name && !featureLayer.feature.properties.hidden) {
+                    // Show label if it should be visible
                     const center = featureLayer.getBounds ? featureLayer.getBounds().getCenter() : featureLayer.getLatLng();
                     updateLabel(featureLayer, featureLayer.feature.properties.Name, center);
+                } else if (featureLayer._label) {
+                    // Hide label if it shouldn't be visible
+                    featureLayer._label.remove();
+                    delete featureLayer._label;
                 }
             });
         }
@@ -452,6 +498,7 @@
                 layerControl.removeLayer(layer);
             });
             activeLayers.clear();
+            layerLabelsVisible.clear();
         }
 
         async function loadFromUrl(url) {
@@ -536,6 +583,9 @@
                 });
             }
 
+            // Set initial label visibility state to true
+            layerLabelsVisible.set(identifier, true);
+
             const layer = L.geoJSON(data, {
                 style: getFeatureStyle,
                 pointToLayer: function(feature, latlng) {
@@ -553,22 +603,17 @@
             }).addTo(map);
 
             const layerName = getLayerName(identifier);
-            const labelHtml = `
-                <div class="layer-control">
-                    <span style="font-weight: bold; margin-right: 8px;">${layerName}</span>
+            const layerHtml = `
+                <div class="layer-action-buttons">
                     <button class="edit-button" onclick="showStyleEditor('${identifier}')">Edit</button>
-                    <label>
-                        <input type="checkbox" 
-                            checked 
-                            onchange="toggleLabels('${identifier}', this.checked)">
-                        Labels
-                    </label>
                 </div>`;
-            layerControl.addOverlay(layer, labelHtml);
+                
+            // Add the layer to the control with just the name and edit button
+            layerControl.addOverlay(layer, layerName + layerHtml);
             
             activeLayers.set(identifier, layer);
 
-            // Previous bounds fitting code remains the same
+            // Fit bounds to show all layers
             if (activeLayers.size === 1) {
                 map.fitBounds(layer.getBounds());
             } else {
@@ -578,6 +623,7 @@
                 map.fitBounds(bounds);
             }
         }
+        
         function shareCurrentView() {
             const urls = Array.from(activeLayers.keys());
             if (urls.length === 0) {
