@@ -12,7 +12,7 @@ This is a collection of geojson files for Santa Rosa City Schools.
 
 # 2025-2026 School Year
 
-- [Elementary School Boundaries](https://santa-rosa-city-schools.github.io/maps/viewer.html?url=https%3A%2F%2Fraw.githubusercontent.com%2FSanta-Rosa-City-Schools%2Fmaps%2Frefs%2Fheads%2Fmain%2FSchool%2520Boundaries%2F2025-2026%2FElementary-Fixed.geojson)
+- [Elementary School Boundaries](https://santa-rosa-city-schools.github.io/maps/viewer.html?url=https%3A%2F%2Fraw.githubusercontent.com%2FSanta-Rosa-City-Schools%2Fmaps%2Frefs%2Fheads%2Fmain%2FSchool%2520Boundaries%2F2025-2026%2FElementary.geojson)
 - [Middle School Boundaries](https://santa-rosa-city-schools.github.io/maps/viewer.html?url=https%3A%2F%2Fraw.githubusercontent.com%2FSanta-Rosa-City-Schools%2Fmaps%2Frefs%2Fheads%2Fmain%2FSchool%2520Boundaries%2F2025-2026%2FMiddle.geojson)
 - [High School Boundaries](https://santa-rosa-city-schools.github.io/maps/viewer.html?url=https%3A%2F%2Fraw.githubusercontent.com%2FSanta-Rosa-City-Schools%2Fmaps%2Frefs%2Fheads%2Fmain%2FSchool%2520Boundaries%2F2025-2026%2FHigh.geojson)
 
