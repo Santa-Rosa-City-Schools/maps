@@ -8,7 +8,10 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
 }).addTo(map);
 
 // We'll create a custom overlay control to manage layer entries reactively
-const layerControl = L.control({ position: 'topright' }).addTo(map);
+const layerControl = L.control({ position: 'topright' });
+// define onAdd before adding to the map so Leaflet can call it when the
+// control is registered. Calling addTo(map) before setting onAdd causes
+// "this.onAdd is not a function" because Leaflet invokes onAdd immediately.
 layerControl.onAdd = function () {
     const container = L.DomUtil.create('div', 'leaflet-control-layers');
     container.setAttribute('role', 'region');
@@ -19,6 +22,7 @@ layerControl.onAdd = function () {
     list.id = 'customLayerList';
     return container;
 };
+layerControl.addTo(map);
 const activeLayers = new Map(); // key: normalized identifier, value: { layer, name }
 const layerLabelsVisible = new Map(); // Track label visibility state
 
